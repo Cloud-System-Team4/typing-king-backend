@@ -14,6 +14,7 @@ print(f"Server started on {HOST}:{PORT}")
 
 lock = threading.Lock()
 waiting_room = []  # 대기 중인 클라이언트 소켓 저장
+matched_clients = []
 rooms = {}  # 룸 ID와 클라이언트 소켓 매칭
 room_id = 0
 
@@ -29,41 +30,60 @@ def handle_client(client_socket, addr):
     try:
         while True:
             with lock:
-                if waiting_room and waiting_room[0] != client_socket:
-                    # 매칭 중인 클라이언트와 새 룸 생성
-                    player1 = waiting_room.pop(0)
-                    player2 = client_socket
-                    room_id += 1
-                    rooms[room_id] = (player1, player2)
+                print("==========================================================")
+                print(f"----- waiting_room: {[client.getpeername() for client in waiting_room]}")
+                print(f"----- currently alive clients: {[client.getpeername() for client in client_sockets]}")
+                print(f"----- currently matched clients: {[f'{client1.getpeername()} and {client2.getpeername()}' for client1, client2 in matched_clients]}")
+                print("==========================================================")
 
-                    # 룸 참가자들에게 START 메시지 전송
-                    player1.send("START".encode())
-                    player2.send("START".encode())
-                    print(f"Room {room_id} created with players {addr} and {player1.getpeername()}")
+                while waiting_room:
+                    if waiting_room[0] != client_socket:
+                        # 매칭 중인 클라이언트와 새 룸 생성
+                        player1 = waiting_room.pop(0)
+                        try: # 클라이언트 상태 검증
+                            player1.send(b"PING")
+                        except (socket.error, BrokenPipeError):
+                            print(f"Client {player1.getpeername()} is unresponsive. Removing from waiting room.")
+                            client_sockets.remove(player1)
+                            player1.close()
+                            continue
+                        player2 = client_socket
+                        room_id += 1
+                        rooms[room_id] = (player1, player2)
 
-                    # 룸 내에서 게임 진행
-                    start_new_thread(run_game, (room_id, player1, player2))
+                        matched_clients.append((player1, player2))
+
+                        # 룸 참가자들에게 START 메시지 전송
+                        player1.send("START".encode())
+                        player2.send("START".encode())
+                        print(f"Room {room_id} created with players {addr} and {player1.getpeername()}")
+
+                        # 룸 내에서 게임 진행
+                        start_new_thread(run_game, (room_id, player1, player2))
+                        return
+                
+                if any(client_socket in (client1, client2) for client1, client2 in matched_clients):
+                    print(f"{client_socket.getpeername()} is matched.")
+                    print("==========================================================")
                     return
-                else:
+                
+                if not waiting_room and not any(client_socket in (client1, client2) for client1, client2 in matched_clients):
+                    # waiting_room 비어있을 때
                     waiting_room.append(client_socket)
                     print(f"Client {addr} added to waiting room. Waiting for another player...")
+                    print("==========================================================")
 
             while client_socket in waiting_room:
                 pass
     except Exception as e:
         print(f"Error with client {addr}: {e}")
-    # finally:
-    #     with lock:
-    #         if client_socket in waiting_room:
-    #             waiting_room.remove(client_socket)
-    #         if client_socket in client_sockets:
-    #             client_sockets.remove(client_socket)
-    #             print(f"Client {addr} disconnected. Current client count: {len(client_sockets)}")
-    #     client_socket.close()
+        print("==========================================================")
 
 def run_game(room_id, player1, player2): # 클라이언트와 통신하는 부분
     player1_time = None
     player2_time = None
+    player1.send("Player 1".encode())
+    player2.send("Player 2".encode())
 
     try:
         while True:
@@ -81,8 +101,8 @@ def run_game(room_id, player1, player2): # 클라이언트와 통신하는 부�
                 else:
                     winner = "Draw"
 
-                player1.send(f"RESULT|{player1_time}|{player2_time}|{winner}".encode())
-                player2.send(f"RESULT|{player2_time}|{player1_time}|{winner}".encode())
+                player1.send(f"RESULT|{player1_time:.2f}|{player2_time:.2f}|{winner}".encode())
+                player2.send(f"RESULT|{player2_time:.2f}|{player1_time:.2f}|{winner}".encode())
 
                 # 추가 게임 여부 확인
                 player1_more = player1.recv(1024).decode().lower()
@@ -91,31 +111,42 @@ def run_game(room_id, player1, player2): # 클라이언트와 통신하는 부�
                 with lock:
                     if player1_more == "yes":
                         waiting_room.append(player1)
-                        print(f"Player 1 from Room {room_id} rejoining waiting room.")
+                        print(f"Player 1 {player1.getpeername()} from Room {room_id} rejoining waiting room.")
+                        print("==========================================================")
                     else:
                         if player1 in client_sockets:
                             client_sockets.remove(player1)
-                            print(f"Player 1 from Room {room_id} disconnected. Current client count: {len(client_sockets)}")
-
+                            print(f"Player 1 {player1.getpeername()} from Room {room_id} disconnected. Current client count: {len(client_sockets)}")
+                            print("==========================================================")
+                with lock:
                     if player2_more == "yes":
                         waiting_room.append(player2)
-                        print(f"Player 2 from Room {room_id} rejoining waiting room.")
+                        print(f"Player 2 {player2.getpeername()} from Room {room_id} rejoining waiting room.")
+                        print("==========================================================")
                     else:
                         if player2 in client_sockets:
                             client_sockets.remove(player2)
-                            print(f"Player 2 from Room {room_id} disconnected. Current client count: {len(client_sockets)}")
+                            print(f"Player 2 {player2.getpeername()} from Room {room_id} disconnected. Current client count: {len(client_sockets)}")
+                            print("==========================================================")
+                    matched_clients.remove((player1, player2))
+                    #print(f"----- currently matched clients: {[f'{client1.getpeername()} and {client2.getpeername()}' for client1, client2 in matched_clients]}")
 
+                # 리소스 해제 - 위에 추가할 경우 '[WinError 10038] 소켓 이외의 개체에 작업을 시도했습니다' 난다.
+                if player1_more == "no":
+                    player1.close()
+                if player2_more == "no":
+                    player2.close()
                 break
     except Exception as e:
         print(f"Error in room {room_id}: {e}")
+        print("==========================================================")
     finally:
         # 클라이언트 종료 및 룸 제거
         with lock:
             if room_id in rooms:
                 del rooms[room_id]
                 print(f"Room {room_id} removed. Current active rooms: {len(rooms)}")
-        player1.close()
-        player2.close()
+                print("==========================================================")
 
 try:
     while True:

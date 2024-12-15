@@ -1,7 +1,7 @@
 import socket
 import time
 
-HOST = '172.30.1.23' # socket.gethostbyname(socket.gethostname()) #'SERVER_IP'  # 서버 IP 주소 입력
+HOST = '172.20.4.31' # socket.gethostbyname(socket.gethostname()) #'SERVER_IP'  # 서버 IP 주소 입력
 PORT = 9999  # 서버 포트 번호
 
 # 서버와의 연결 설정
@@ -35,11 +35,12 @@ def wait_for_match():
 
 def play_game():
     '''타이핑 게임 실행하고 결과 서버 전송'''
-    print("Typing Game start!")
+    player = client_socket.recv(1024).decode()
+    print(f"Typing Game start! You are {player}.")
 
     start_time = time.time()  # 게임 시작 시간
 
-    for i in range(10):  # 10회의 타이핑 게임 진행
+    for i in range(3):  # 10회의 타이핑 게임 진행
         same = False
         while not same:
             compare = from_db[i]

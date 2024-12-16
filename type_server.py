@@ -1,6 +1,7 @@
 import socket
 from _thread import *
 import threading
+import websocket
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 9999

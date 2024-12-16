@@ -80,13 +80,13 @@ def play_game(websocket, client_socket):
                 })
                 break
     elapsed_time = time.time() - start_time
-    print(f"총 소요 시간: {elapsed_time:.2f}초")
+    # print(f"총 소요 시간: {elapsed_time:.2f}초")
     # 서버로 결과 전송
     client_socket.send(str(elapsed_time).encode())
 
     # 서버에게 우승 결과 받기
     result = client_socket.recv(1024).decode()
-    print(f"raw result from server: {result}")
+    # print(f"raw result from server: {result}")
     
     if result.startswith("RESULT"):
         _, player_time, opponent_time, winner = result.split("|")
@@ -102,12 +102,11 @@ def play_game(websocket, client_socket):
 async def asking(websocket, client_socket):
     # 추가 게임 여부 확인을 프런트에서 받음
     message = await get_message(websocket)
-    if message["type"]=="RETRY":
-        more = message["continue"] #input("Another round? (yes/no): ").strip().lower()
-        client_socket.send(more.encode())
-        return more
-    else:
-        return None
+    if message and message["type"]=="RETRY":
+        continue_game = message["continue"] #input("Another round? (yes/no): ").strip().lower()
+        client_socket.send(str(continue_game).encode())
+        return continue_game
+    return False
     
 async def starting():
     while True:
@@ -124,10 +123,10 @@ async def starting():
                     if wait_for_match(client_socket): # 매칭 대기 (서버가 하는 중)
                         await play_game(websocket, client_socket)   # 게임 실행
                     
-                    if not await asking(websocket, client_socket):
-                        print("게임을 종료합니다.")
-                        break
-    client_socket.close()
+                    start_game = await asking(websocket, client_socket)
+            print("게임을 종료합니다.")
+            client_socket.close()
+            break
 
 # asyncio 실행
 asyncio.run(starting())

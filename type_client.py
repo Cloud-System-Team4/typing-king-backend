@@ -43,7 +43,7 @@ async def get_message(websocket):
         print(f"Invalid JSON: {raw}")
         return None
 
-def wait_for_match(client_socket):
+async def wait_for_match(client_socket):
     '''대기상태로 돌아가 매칭신호 기다림'''
     print("Waiting for a match...")
     while True:
@@ -52,7 +52,7 @@ def wait_for_match(client_socket):
             print("Match found! Starting game...")
             return True
 
-def play_game(websocket, client_socket):
+async def play_game(websocket, client_socket):
     '''타이핑 게임 실행하고 결과 서버 전송'''
     sentences = get_random_sentence() # DB 랜던값 채움.
     player = client_socket.recv(1024).decode()
@@ -120,7 +120,7 @@ async def starting():
                 # 자스에서 start 한다면 starting을 시작.
                 message = await get_message(websocket)
                 if message and message["type"]=="START_GAME" and message["start"]:
-                    if wait_for_match(client_socket): # 매칭 대기 (서버가 하는 중)
+                    if await wait_for_match(client_socket): # 매칭 대기 (서버가 하는 중)
                         await play_game(websocket, client_socket)   # 게임 실행
                     
                     start_game = await asking(websocket, client_socket)

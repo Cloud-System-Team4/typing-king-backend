@@ -1,7 +1,6 @@
 import socket
 from _thread import *
 import threading
-import websocket
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 9999
@@ -20,6 +19,7 @@ rooms = {}  # 룸 ID와 클라이언트 소켓 매칭
 room_id = 0
 
 client_sockets = []  # 모든 클라이언트 소켓 관리
+
 
 def handle_client(client_socket, addr):
     global room_id

@@ -4,10 +4,11 @@ import mysql.connector
 import websockets
 import asyncio
 import json
+import threading
 
 HOST = '172.20.4.31' #'SERVER_IP'  # 서버 IP 주소 입력
 PORT = 9999  # 서버 포트 번호
-SERVER_URI = "ws://localhost:9999" # 웹소켓 서버 URI
+SERVER_URI = "ws://localhost:9998" # 웹소켓 서버 URI
 
 # 1. 시작하기 버튼 누르면 (페이지 이동) 큐에 들어가는 과정.
     ## 자스 웹소켓으로 받아서 
@@ -108,25 +109,33 @@ async def asking(websocket, client_socket):
         return continue_game
     return False
     
-async def starting():
+async def starting(websocket):
     while True:
-        async with websockets.connect("ws://localhost:9999") as websocket:
-            # 서버와의 연결 설정
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((HOST, PORT))
-            
-            start_game = True
-            while start_game:
-                # 자스에서 start 한다면 starting을 시작.
-                message = await get_message(websocket)
-                if message and message["type"]=="START_GAME" and message["start"]:
-                    if await wait_for_match(client_socket): # 매칭 대기 (서버가 하는 중)
-                        await play_game(websocket, client_socket)   # 게임 실행
-                    
-                    start_game = await asking(websocket, client_socket)
-            print("게임을 종료합니다.")
-            client_socket.close()
-            break
+        # 서버와의 연결 설정
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect((HOST, PORT))
+        print("inside starting()")
+        
+        start_game = True
+        while start_game:
+            # 자스에서 start 한다면 starting을 시작.
+            raw = await websocket.recv()
+            message = json.loads(raw)
+            print(raw)
+            if message and message["type"]=="START_GAME" and message["start"]:
+                if await wait_for_match(client_socket): # 매칭 대기 (서버가 하는 중)
+                    await play_game(websocket, client_socket)   # 게임 실행
+                
+                start_game = await asking(websocket, client_socket)
+        print("게임을 종료합니다.")
+        client_socket.close()
+        break
 
-# asyncio 실행
-asyncio.run(starting())
+async def main():
+    print('waiting for js')
+    while True:
+        # 서버 무한 실행
+        async with websockets.serve(starting, 'localhost', 9998) as websocket:
+            await asyncio.Future()
+
+asyncio.run(main())

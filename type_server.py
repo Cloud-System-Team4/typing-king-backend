@@ -20,6 +20,7 @@ room_id = 0
 
 client_sockets = []  # 모든 클라이언트 소켓 관리
 
+
 def handle_client(client_socket, addr):
     global room_id
     print(f"Connected by {addr}")

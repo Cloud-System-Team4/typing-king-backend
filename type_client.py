@@ -4,8 +4,9 @@ import mysql.connector
 import websockets
 import asyncio
 import json
+import threading
 
-HOST = '172.20.4.31' #'SERVER_IP'  # 서버 IP 주소 입력
+HOST = '172.20.34.67' #'SERVER_IP'  # 서버 IP 주소 입력
 PORT = 9999  # 서버 포트 번호
 SERVER_URI = "ws://localhost:9998" # 웹소켓 서버 URI
 
@@ -126,6 +127,8 @@ async def asking(websocket, client_socket):
     return False
     
 async def starting(websocket):
+    client_id = id(websocket)
+    print(f"New client connected: {client_id}")
     while True:
         # 서버와의 연결 설정
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -142,11 +145,33 @@ async def starting(websocket):
         client_socket.close()
         break
 
-async def main():
-    print('waiting for js')
-    while True:
-        # 서버 무한 실행
-        async with websockets.serve(starting, 'localhost', 9998) as websocket:
-            await asyncio.Future()
+def start_websocket_server():
+    '''웹소켓 서버 시작'''
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    loop=asyncio.get_event_loop()
+    start_server = websockets.serve(starting, 'localhost', 9998)
+    loop.run_until_complete(start_server)
+    loop.run_forever()
 
-asyncio.run(main())
+# async def main():
+#     print('waiting for js')
+#     server = await websockets.serve(starting, 'localhost', 9998)
+#     await asyncio.Future()
+
+def start_server():
+    '''스레드 이용해서 웹소켓 서버 실행'''
+    websocket_thread = threading.Thread(target=start_websocket_server)
+    # websocket_thread.daemon = True
+    websocket_thread.start()
+
+start_server()
+
+# # 기존 이벤트 루프를 가져와 실행
+# loop = asyncio.get_event_loop()
+# try:
+#     loop.run_until_complete(main())
+#     loop.run_forever()
+# except KeyboardInterrupt:
+#     print("Server shutting down...")
+# finally:
+#     loop.close()

@@ -1,0 +1,43 @@
+# kubernetes/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+  labels:
+    app: typingking  # 잘못된 들여쓰기를 수정
+spec:
+  replicas: 1 # 초기 pod의 개수
+  selector:
+    matchLabels:
+      app: typingking
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: typingking
+        tier: backend
+    spec:
+      containers:
+      - name: server-backend
+        image: chaeil22/type-server:latest # server로 만든 docker 이미지
+        ports:
+        - containerPort: 9999
+          name: backend
+
+---
+# kubernetes/backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+  labels:
+    app: typingking  # 잘못된 들여쓰기를 수정
+spec:
+  # type: LoadBalancer
+  selector:
+    app: typingking
+    tier: backend
+  ports:
+  - protocol: TCP
+    port: 9999 # 클라이언트가 9999로 요청을 보냄.
+    targetPort: 8000

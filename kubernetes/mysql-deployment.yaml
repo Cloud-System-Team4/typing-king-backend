@@ -1,0 +1,129 @@
+# kubernetes/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-deployment
+  labels:
+    app: typingking
+spec:
+  replicas: 2 # 초기 파드
+  selector:
+    matchLabels:
+      app: typingking
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: typingking
+        tier: backend
+    spec:
+      containers:
+        - name: client-backend
+          image: chaeil22/typing-client:latest
+          ports:
+            - containerPort: 9998
+              name: backend
+---
+# kubernetes/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-service
+  labels:
+    app: typingking
+spec:
+  #type: LoadBalancer
+  selector:
+    app: typingking
+    tier: backend
+  ports:
+    - protocol: TCP
+      port: 9998
+      targetPort: 8080
+root@k8s-master:~/typing-king-backend# ^C
+root@k8s-master:~/typing-king-backend# cat mysql-deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: type-db
+  labels:
+    app: typingking  # 모든 거 이걸로 통일
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: typingking
+    tier: database
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: type-db-deployment
+  labels:
+    app: typingking
+spec:
+  selector:
+    matchLabels:
+      app: typingking
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: typingking
+        tier: database
+    spec:
+      containers:
+        - image: chaeil22/type-db:latest
+          name: type-db
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "rootpassword"
+            - name: MYSQL_DATABASE
+              value: "typeDB"
+            - name: MYSQL_USER
+              value: "cloud4"
+            - name: MYSQL_PASSWORD
+              value: "qwerty"
+          ports:
+            - containerPort: 3306
+              name: database
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql  # 데이터가 저장되는 경로
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: mysql-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  labels:
+    app: typingking
+spec:
+  storageClassName: ""
+  volumeName: mysql-pv
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    app: typingking
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+    - ReadOnlyMany
+  persistentVolumeReclaimPolicy: Delete
+  hostPath:
+    path: /mysql/mysql_data
+    type: DirectoryOrCreate

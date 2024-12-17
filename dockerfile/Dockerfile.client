@@ -1,0 +1,9 @@
+FROM python:3.9-slim
+
+WORKDIR .
+
+COPY type_client.py .
+
+RUN pip install mysql-connector-python
+
+CMD ["python3", "type_client.py"]

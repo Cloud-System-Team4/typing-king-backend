@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   name: server-deployment
   labels:
-    app: typingking  # 잘못된 들여쓰기를 수정
+    app: typingking
 spec:
   replicas: 1 # 초기 pod의 개수
   selector:
@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: server-backend
-        image: chaeil22/type-server:latest # server로 만든 docker 이미지
+        image: chaeil22/server:latest # server로 만든 docker 이미지
         ports:
         - containerPort: 9999
           name: backend
@@ -31,7 +31,7 @@ kind: Service
 metadata:
   name: server-service
   labels:
-    app: typingking  # 잘못된 들여쓰기를 수정
+    app: typingking
 spec:
   # type: LoadBalancer
   selector:
@@ -39,5 +39,5 @@ spec:
     tier: backend
   ports:
   - protocol: TCP
-    port: 9999 # 클라이언트가 9999로 요청을 보냄.
+    port: 9999
     targetPort: 8000
